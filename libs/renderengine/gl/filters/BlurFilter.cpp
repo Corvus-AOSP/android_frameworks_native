@@ -23,7 +23,7 @@
 #include <GLES3/gl3ext.h>
 #include <ui/GraphicTypes.h>
 #include <cstdint>
-
+#include <cutils/properties.h>
 #include <utils/Trace.h>
 
 namespace android {
@@ -37,6 +37,7 @@ BlurFilter::BlurFilter(GLESRenderEngine& engine)
         mPongFbo(engine),
         mMixProgram(engine),
         mBlurProgram(engine) {
+    static int PRODUCT_SHIPPING_API_LEVEL = property_get_int32("ro.build.version.sdk", 0);
     ALOGI("PRODUCT_SHIPPING_API_LEVEL=%d", PRODUCT_SHIPPING_API_LEVEL);
     mMixProgram.compile(getVertexShader(), getMixFragShader());
     mMPosLoc = mMixProgram.getAttributeLocation("aPosition");
