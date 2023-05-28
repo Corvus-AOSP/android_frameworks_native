@@ -117,6 +117,8 @@ status_t layer_state_t::write(Parcel& output) const
     output.writeFloat(frameRate);
     output.writeByte(frameRateCompatibility);
     output.writeUint32(fixedTransformHint);
+    output.writeBool(isTrustedOverlay);
+    output.writeUint32(static_cast<uint32_t>(dropInputMode));
     return NO_ERROR;
 }
 
@@ -200,6 +202,11 @@ status_t layer_state_t::read(const Parcel& input)
     frameRate = input.readFloat();
     frameRateCompatibility = input.readByte();
     fixedTransformHint = static_cast<ui::Transform::RotationFlags>(input.readUint32());
+    isTrustedOverlay = input.readBool();
+
+    uint32_t mode;
+    mode = input.readUint32();
+    dropInputMode = static_cast<gui::DropInputMode>(mode);
     return NO_ERROR;
 }
 
@@ -266,6 +273,27 @@ void DisplayState::merge(const DisplayState& other) {
         what |= eDisplaySizeChanged;
         width = other.width;
         height = other.height;
+    }
+}
+
+void DisplayState::sanitize(bool privileged) {
+    if (what & DisplayState::eLayerStackChanged) {
+        if (!privileged) {
+            what &= ~DisplayState::eLayerStackChanged;
+            ALOGE("Stripped attempt to set eLayerStackChanged in sanitize");
+        }
+    }
+    if (what & DisplayState::eDisplayProjectionChanged) {
+        if (!privileged) {
+            what &= ~DisplayState::eDisplayProjectionChanged;
+            ALOGE("Stripped attempt to set eDisplayProjectionChanged in sanitize");
+        }
+    }
+    if (what & DisplayState::eSurfaceChanged) {
+        if (!privileged) {
+            what &= ~DisplayState::eSurfaceChanged;
+            ALOGE("Stripped attempt to set eSurfaceChanged in sanitize");
+        }
     }
 }
 
@@ -438,6 +466,14 @@ void layer_state_t::merge(const layer_state_t& other) {
     if (other.what & eFixedTransformHintChanged) {
         what |= eFixedTransformHintChanged;
         fixedTransformHint = other.fixedTransformHint;
+    }
+    if (other.what & eTrustedOverlayChanged) {
+        what |= eTrustedOverlayChanged;
+        isTrustedOverlay = other.isTrustedOverlay;
+    }
+    if (other.what & eDropInputModeChanged) {
+        what |= eDropInputModeChanged;
+        dropInputMode = other.dropInputMode;
     }
     if ((other.what & what) != other.what) {
         ALOGE("Unmerged SurfaceComposer Transaction properties. LayerState::merge needs updating? "
